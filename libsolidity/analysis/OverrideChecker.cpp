@@ -86,10 +86,16 @@ private:
 		int currentNode = static_cast<int>(numNodes++);
 		nodes[_function] = currentNode;
 		nodeInv[currentNode] = _function;
-		if (_function.overrides())
-			for (auto const& baseFunction: _function.baseFunctions())
+
+		bool addedEdge = false;
+		for (auto const& baseFunction: _function.baseFunctions())
+			if (_function.overrides() || baseFunction.contract().isInterface())
+			{
 				addEdge(currentNode, visit(baseFunction));
-		else
+				addedEdge = true;
+			}
+
+		if (!addedEdge)
 			addEdge(currentNode, 1);
 
 		return currentNode;
@@ -518,7 +524,7 @@ void OverrideChecker::checkOverride(OverrideProxy const& _overriding, OverridePr
 			"Override changes modifier signature."
 		);
 
-	if (!_overriding.overrides())
+	if (!_overriding.overrides() && !(_super.isFunction() && _super.contract().isInterface()))
 		overrideError(
 			_overriding,
 			_super,
