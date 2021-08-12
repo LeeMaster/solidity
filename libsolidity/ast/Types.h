@@ -174,7 +174,7 @@ public:
 	enum class Category
 	{
 		Address, Integer, RationalNumber, StringLiteral, Bool, FixedPoint, Array, ArraySlice,
-		FixedBytes, Contract, Struct, Function, Enum, Tuple,
+		FixedBytes, Contract, Struct, Function, Enum, UserDefinedValueType, Tuple,
 		Mapping, TypeType, Modifier, Magic, Module,
 		InaccessibleDynamic
 	};
@@ -683,6 +683,7 @@ public:
 	TypeResult unaryOperatorResult(Token _operator) const override;
 	TypeResult binaryOperatorResult(Token _operator, Type const* _other) const override;
 
+	BoolResult isExplicitlyConvertibleTo(Type const& _convertTo) const override;
 	unsigned calldataEncodedSize(bool _padded) const override{ return _padded ? 32 : 1; }
 	unsigned storageBytes() const override { return 1; }
 	bool leftAligned() const override { return false; }
@@ -1077,6 +1078,62 @@ private:
 };
 
 /**
+ * The type of a UserDefinedValueType.
+ */
+class UserDefinedValueType: public Type
+{
+public:
+	explicit UserDefinedValueType(
+		Type const& _underlyingType,
+		UserDefinedValueTypeDefinition const& _userDefinedValueType
+	):
+		m_underlyingType(_underlyingType),
+		m_userDefinedValueType(_userDefinedValueType)
+	{
+	}
+
+	Category category() const override { return Category::UserDefinedValueType; }
+	Type const& underlyingType() const { return m_underlyingType; }
+	UserDefinedValueTypeDefinition const& definition() const { return m_userDefinedValueType; }
+
+	TypeResult binaryOperatorResult(Token, Type const*) const override { return nullptr; }
+	Type const* encodingType() const override { return &m_underlyingType; }
+	TypeResult interfaceType(bool /* _inLibrary */) const override {return &m_underlyingType; }
+	std::string richIdentifier() const override;
+	bool operator==(Type const& _other) const override;
+
+	unsigned calldataEncodedSize(bool _padded) const override { return m_underlyingType.calldataEncodedSize(_padded); }
+
+	bool leftAligned() const override { return m_underlyingType.leftAligned(); }
+	bool canBeStored() const override { return m_underlyingType.canBeStored(); }
+	u256 storageSize() const override { return m_underlyingType.storageSize(); }
+	bool isValueType() const override
+	{
+		solAssert(m_underlyingType.isValueType(), "");
+		return true;
+	}
+	bool nameable() const override
+	{
+		solAssert(m_underlyingType.nameable(), "");
+		return true;
+	}
+
+	std::string toString(bool _short) const override;
+	std::string canonicalName() const override { solAssert(false, ""); }
+	std::string signatureInExternalFunction(bool) const override { solAssert(false, ""); }
+
+	BoolResult isExplicitlyConvertibleTo(Type const& _convertTo) const override;
+	///	Helper function to reason about UserDefinedValueType to ValueType explicit conversion
+	static bool convertTo(Type const& _userDefined, Type const& _valueType);
+protected:
+	std::vector<std::tuple<std::string, Type const*>> makeStackItems() const override;
+
+private:
+	Type const& m_underlyingType;
+	UserDefinedValueTypeDefinition const& m_userDefinedValueType;
+};
+
+/**
  * Type that can hold a finite sequence of values of different types.
  * In some cases, the components are empty pointers (when used as placeholders).
  */
@@ -1453,7 +1510,6 @@ protected:
 private:
 	Type const* m_actualType;
 };
-
 
 /**
  * The type of a function modifier. Not used for anything for now.
