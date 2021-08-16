@@ -3158,6 +3158,18 @@ string YulUtilFunctions::allocateAndInitializeMemoryStructFunction(StructType co
 
 string YulUtilFunctions::conversionFunction(Type const& _from, Type const& _to)
 {
+	if (_from.category() == Type::Category::UserDefinedValueType)
+	{
+		solAssert(_from.isExplicitlyConvertibleTo(_to), "");
+		solAssert(_to.isValueType(), "");
+		return conversionFunction(dynamic_cast<UserDefinedValueType const&>(_from).underlyingType(), _to);
+	}
+	if (_to.category() == Type::Category::UserDefinedValueType)
+	{
+		solAssert(_from.isExplicitlyConvertibleTo(_to), "");
+		solAssert(_from.isValueType() || dynamic_cast<RationalNumberType const*>(&_from), "");
+		return conversionFunction(_from, dynamic_cast<UserDefinedValueType const&>(_to).underlyingType());
+	}
 	if (_from.category() == Type::Category::Function)
 	{
 		solAssert(_to.category() == Type::Category::Function, "");
@@ -3428,6 +3440,15 @@ string YulUtilFunctions::conversionFunction(Type const& _from, Type const& _to)
 		case Type::Category::Mapping:
 		{
 			solAssert(_from == _to, "");
+			body = "converted := value";
+			break;
+		}
+		case Type::Category::UserDefinedValueType:
+		{
+			auto& userDefinedValueTypeType = dynamic_cast<UserDefinedValueType const&>(_from);
+			Type const* encodingType = userDefinedValueTypeType.encodingType();
+			solAssert(encodingType, "");
+			solAssert(_from == _to || *encodingType == _to, "");
 			body = "converted := value";
 			break;
 		}
@@ -3783,6 +3804,14 @@ string YulUtilFunctions::cleanupFunction(Type const& _type)
 		case Type::Category::InaccessibleDynamic:
 			templ("body", "cleaned := 0");
 			break;
+		case Type::Category::UserDefinedValueType:
+			templ(
+				"body",
+				"cleaned := " +
+					cleanupFunction(dynamic_cast<UserDefinedValueType const&>(_type).underlyingType()) +
+					"(value)"
+			);
+			break;
 		default:
 			solAssert(false, "Cleanup of type " + _type.identifier() + " requested.");
 		}
@@ -3816,6 +3845,7 @@ string YulUtilFunctions::validatorFunction(Type const& _type, bool _revertOnFail
 		case Type::Category::Mapping:
 		case Type::Category::FixedBytes:
 		case Type::Category::Contract:
+		case Type::Category::UserDefinedValueType:
 		{
 			templ("condition", "eq(value, " + cleanupFunction(_type) + "(value))");
 			break;

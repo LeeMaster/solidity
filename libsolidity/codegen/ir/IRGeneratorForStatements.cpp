@@ -869,8 +869,10 @@ void IRGeneratorForStatements::endVisit(FunctionCall const& _functionCall)
 
 	if (functionCallKind == FunctionCallKind::TypeConversion)
 	{
+		Type::Category category = _functionCall.expression().annotation().type->category();
 		solAssert(
-			_functionCall.expression().annotation().type->category() == Type::Category::TypeType,
+			category == Type::Category::TypeType ||
+			category == Type::Category::UserDefinedValueType,
 			"Expected category to be TypeType"
 		);
 		solAssert(_functionCall.arguments().size() == 1, "Expected one argument for type conversion");
@@ -2297,6 +2299,10 @@ void IRGeneratorForStatements::endVisit(Identifier const& _identifier)
 		// no-op
 	}
 	else if (dynamic_cast<ImportDirective const*>(declaration))
+	{
+		// no-op
+	}
+	else if (dynamic_cast<UserDefinedValueTypeDefinition const*>(declaration))
 	{
 		// no-op
 	}
