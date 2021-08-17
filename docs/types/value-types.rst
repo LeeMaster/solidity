@@ -617,6 +617,49 @@ subsequent unsigned integer values starting from ``0``.
 .. note::
     Enums can also be declared on the file level, outside of contract or library definitions.
 
+.. index:: ! user defined value type, custom type
+
+.. _userDefinedValueTypes:
+
+User Defined Value Types
+------------------------
+
+A user defined value type allows creating a zero cost abstraction over a value type. This is similar
+to an alias, but with stricter type requirements.
+
+A user defined value type is defined using ``type C is V`` where ``C`` is the name of the newly
+introduced type and ``V`` has to be a built-in value type. The type ``C`` does not have any
+operators or bound member functions. In particular, even the operator ``==`` is not defined. One can
+use operators or bound member functions by explicitly converting it to the underlying type.
+
+The following example illustrates two custom types ``L1Address`` and ``L2Address`` over the value
+type ``address``:
+
+.. code-block:: solidity
+
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity ^0.8.7;
+
+    type L1Address is address;
+    type L2Address is address;
+
+    contract CustomType {
+        L1Address public myL1Address;
+        L2Address public myL2Address;
+        function setMyL1Address(L1Address _myL1Address) external {
+            myL1Address = _myL1Address;
+        }
+        function setMyL2AddressViaL1Address(L1Address _myL1Address) external {
+            myL2Address = L2Address(address(_myL1Address));
+        }
+        function isSame(L1Address a, L2Address b) internal returns(bool) {
+            return address(a) == address(b);
+        }
+        function isSame(L1Address a, L1Address b) internal returns(bool) {
+            return address(a) == address(b);
+        }
+    }
+
 
 .. index:: ! function type, ! type; function
 

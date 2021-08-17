@@ -1,6 +1,7 @@
 ### 0.8.8 (unreleased)
 
 Language Features:
+ * User Defined Value Type: allows creating a zero cost abstraction over a value type with stricter type requirements.
 
 
 Compiler Features:
